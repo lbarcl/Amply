@@ -9,11 +9,11 @@ public:
     ~DigitalAmp();
     
     bool initialize();
-    bool start();
-    void stop();
-    
-    void setGain(float gain);
-    void setDistortion(float distortion);
+    bool openStream(PaStreamParameters inputParameters, PaStreamParameters outputParameters, double sampleRate, unsigned long framesPerBuffer);
+    bool startStream();
+    void stopStream();
+
+    PaStreamParameters* createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput);
     
 private:
     static int audioCallback(const void* inputBuffer, void* outputBuffer,
@@ -23,11 +23,8 @@ private:
                            void* userData);
     
     int processAudio(const float* input, float* output, unsigned long frameCount);
-    float applyDistortion(float sample);
     
     PaStream* stream_;
-    float gain_;
-    float distortion_;
     bool initialized_;
     bool running_;
 };

@@ -2,6 +2,23 @@
 
 #include <portaudio.h>
 #include <memory>
+#include <vector>
+#include <string>
+
+// A safe copy of device information
+struct DeviceInfo {
+    int index;              // PortAudio device index
+    std::string name;       // Device name
+    int maxInputChannels;   // >0 means input
+    int maxOutputChannels;  // >0 means output
+};
+
+// A container of available devices
+struct AvailableDevices {
+    public:
+    std::vector<DeviceInfo> inputs;
+    std::vector<DeviceInfo> outputs;
+};
 
 class DigitalAmp {
 public:
@@ -13,6 +30,7 @@ public:
     bool startStream();
     void stopStream();
 
+    std::unique_ptr<AvailableDevices> getAvailableDevices();
     PaStreamParameters* createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput);
     
 private:
@@ -24,7 +42,10 @@ private:
     
     int processAudio(const float* input, float* output, unsigned long frameCount);
     
+    PaHostApiIndex currentApi;
     PaStream* stream_;
     bool initialized_;
     bool running_;
 };
+
+PaHostApiIndex chooseBestApi();

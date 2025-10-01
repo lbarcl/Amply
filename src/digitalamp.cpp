@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 DigitalAmp::DigitalAmp()
     : stream_(nullptr), initialized_(false), running_(false)
@@ -27,6 +28,8 @@ bool DigitalAmp::initialize()
     }
 
     initialized_ = true;
+
+    currentApi = chooseBestApi();
 
     return true;
 }
@@ -86,7 +89,56 @@ void DigitalAmp::stopStream()
     running_ = false;
 }
 
-PaStreamParameters* DigitalAmp::createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput = true)
+std::unique_ptr<AvailableDevices> DigitalAmp::getAvailableDevices()
+{
+    auto result = std::make_unique<AvailableDevices>();
+
+    const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(currentApi);
+    if (!apiInfo) return result;
+
+    auto isVirtual = [](const std::string& n) {
+        static const std::vector<std::string> blacklist = {
+            "Monitor of", "dmix", "default", "null",
+            "a52", "side", "rear", "center_lfe", "cards.pcm"
+        };
+        for (const auto& bad : blacklist) {
+            if (n.find(bad) != std::string::npos) return true;
+        }
+        return false;
+    };
+
+    auto sanitizeName = [](const char* raw) {
+        std::string s(raw ? raw : "");
+        for (char& c : s) {
+            if (!isprint(static_cast<unsigned char>(c))) {
+                c = '?'; // replace unprintables
+            }
+        }
+        return s;
+    };
+
+    for (int i = 0; i < apiInfo->deviceCount; i++) {
+        PaDeviceIndex deviceIndex = Pa_HostApiDeviceIndexToDeviceIndex(currentApi, i);
+        const PaDeviceInfo* paDev = Pa_GetDeviceInfo(deviceIndex);
+        if (!paDev) continue;
+
+        std::string name = sanitizeName(paDev->name);
+        if (isVirtual(name)) continue; // skip ghost/virtual devices
+
+        DeviceInfo d;
+        d.index = deviceIndex;
+        d.name = std::string(apiInfo->name) + ": " + name;
+        d.maxInputChannels = paDev->maxInputChannels;
+        d.maxOutputChannels = paDev->maxOutputChannels;
+
+        if (d.maxInputChannels > 0) result->inputs.push_back(d);
+        if (d.maxOutputChannels > 0) result->outputs.push_back(d);
+    }
+
+    return result;
+}
+
+PaStreamParameters *DigitalAmp::createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput = true)
 {   
     PaStreamParameters params;
     const PaDeviceInfo* device = Pa_GetDeviceInfo(deviceIndex);
@@ -130,4 +182,35 @@ int DigitalAmp::processAudio(const float *input, float *output, unsigned long fr
     }
 
     return paContinue;
+}
+
+// Utility: pick best host API based on OS & fallback list
+PaHostApiIndex chooseBestApi() {
+#ifdef _WIN32
+    std::vector<std::string> priority = {
+        "Windows WASAPI", "Windows WDM-KS", "Windows DirectSound", "MME"
+    };
+#elif __APPLE__
+    std::vector<std::string> priority = { "Core Audio" };
+#else // Linux & others
+    std::vector<std::string> priority = {
+        "PulseAudio", "ALSA", "JACK Audio Connection Kit", "OSS"
+    };
+#endif
+
+    int numApis = Pa_GetHostApiCount();
+    if (numApis < 0) return paHostApiNotFound;
+
+    // Try APIs in order of priority
+    for (auto &pref : priority) {
+        for (int i = 0; i < numApis; i++) {
+            const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(i);
+            if (std::string(apiInfo->name).find(pref) != std::string::npos) {
+                return i;
+            }
+        }
+    }
+
+    // fallback to default API
+    return Pa_GetDefaultHostApi();
 }

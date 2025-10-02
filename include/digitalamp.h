@@ -1,5 +1,4 @@
 #pragma once
-
 #include <portaudio.h>
 #include <memory>
 
@@ -11,13 +10,16 @@ public:
     ~DigitalAmp();
     
     bool initialize();
-    bool openStream(PaStreamParameters inputParameters, PaStreamParameters outputParameters, double sampleRate, unsigned long framesPerBuffer);
+    bool openStream(double sampleRate, unsigned long framesPerBuffer);
+    bool createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput);
+    
     bool startStream();
     void stopStream();
+    
+    double choseBestSampleRate();    
+    int chooseCommonChannelCount(const DeviceInfo &input, const DeviceInfo &output);
 
     std::unique_ptr<AvailableDevices> getAvailableDevices();
-    PaStreamParameters* createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput);
-    
 private:
     static int audioCallback(const void* inputBuffer, void* outputBuffer,
                            unsigned long framesPerBuffer,
@@ -26,9 +28,12 @@ private:
                            void* userData);
     
     int processAudio(const float* input, float* output, unsigned long frameCount);
-    
-    PaHostApiIndex currentApi;
+
+
+    PaHostApiIndex currentApi_;
     PaStream* stream_;
+    PaStreamParameters inputParams_;
+    PaStreamParameters outputParams_;
     bool initialized_;
     bool running_;
 };

@@ -5,7 +5,7 @@
 #include <vector>
 
 DigitalAmp::DigitalAmp()
-    : stream_(nullptr), initialized_(false), running_(false)
+    : stream_(nullptr), initialized_(false), running_(false), sampleRate(0.0), inputParams_({}), outputParams_({})
 {
 }
 
@@ -34,6 +34,11 @@ bool DigitalAmp::initialize()
     return true;
 }
 
+bool DigitalAmp::openStream()
+{
+    return this->openStream(sampleRate, paFramesPerBufferUnspecified);
+}
+
 bool DigitalAmp::openStream(double sampleRate, unsigned long framesPerBuffer)
 {
     if (!initialized_)
@@ -41,6 +46,9 @@ bool DigitalAmp::openStream(double sampleRate, unsigned long framesPerBuffer)
         std::cerr << "PortAudio error: PortAudio is not initialized" << std::endl;
         return false;
     }
+
+    if (!chooseCommonChannelCount())
+        return false;
 
     // Verify that this format is supported
     PaError support = Pa_IsFormatSupported(&inputParams_, &outputParams_, sampleRate);
@@ -75,7 +83,6 @@ bool DigitalAmp::startStream()
         return false;
     }
 
-
     PaError err = Pa_StartStream(stream_);
     if (err != paNoError)
     {
@@ -96,6 +103,32 @@ void DigitalAmp::stopStream()
     }
 
     running_ = false;
+}
+
+std::vector<double> DigitalAmp::getSupportedSampleRates(const PaStreamParameters *inputParams, const PaStreamParameters *outputParams)
+{
+    // Most commonly supported sample rates
+    double standardRates[] = {
+        8000.0, 11025.0, 16000.0, 22050.0, 32000.0,
+        44100.0, 48000.0, 88200.0, 96000.0, 192000.0};
+
+    std::vector<double> supported;
+
+    for (double rate : standardRates)
+    {
+        PaError err = Pa_IsFormatSupported(inputParams, outputParams, rate);
+        if (err == paFormatIsSupported)
+        {
+            supported.push_back(rate);
+        }
+    }
+
+    return supported;
+}
+
+std::vector<double> DigitalAmp::getSupportedSampleRates()
+{
+    return getSupportedSampleRates(&inputParams_, &outputParams_);
 }
 
 std::unique_ptr<AvailableDevices> DigitalAmp::getAvailableDevices()
@@ -213,16 +246,40 @@ int DigitalAmp::audioCallback(const void *inputBuffer, void *outputBuffer,
 
 int DigitalAmp::processAudio(const float *input, float *output, unsigned long frameCount)
 {
+    int inCh = inputParams_.channelCount;
+    int outCh = outputParams_.channelCount;
+
     for (unsigned long i = 0; i < frameCount; i++)
     {
-        float sample = input[i];
-        // Clip to prevent overflow
-        sample = std::max(-1.0f, std::min(1.0f, sample));
+        for (int ch = 0; ch < std::min(inCh, outCh); ch++)
+        {
+            float sample = input[i * inCh + ch];
+            sample = std::max(-1.0f, std::min(1.0f, sample));
+            output[i * outCh + ch] = sample;
+        }
 
-        output[i] = sample;
+        // If output has more channels than input (e.g., mono → stereo),
+        // duplicate the first channel
+        for (int ch = inCh; ch < outCh; ch++)
+        {
+            output[i * outCh + ch] = output[i * outCh];
+        }
     }
 
     return paContinue;
+}
+
+bool DigitalAmp::chooseCommonChannelCount()
+{
+    int commonChannelCount = chooseCommonChannelCount(inputParams_.channelCount, outputParams_.channelCount);
+
+    if (commonChannelCount == 0)
+    {
+        std::cerr << "No valid channel count found!\n";
+        return false;
+    }
+
+    return true;
 }
 
 int DigitalAmp::chooseCommonChannelCount(const DeviceInfo &input, const DeviceInfo &output)
@@ -241,4 +298,57 @@ int DigitalAmp::chooseCommonChannelCount(const DeviceInfo &input, const DeviceIn
         common = 1; // must be >= 1
 
     return common;
+}
+
+int DigitalAmp::chooseCommonChannelCount(int inputCount, int outputCount)
+{
+    if (inputCount <= 0 || outputCount <= 0)
+    {
+        std::cerr << "One of the devices has no usable channels!\n";
+        return 0;
+    }
+
+    int common = std::min(inputCount, outputCount);
+    if (common < 1)
+        common = 1; // must be >= 1
+
+    return common;
+}
+
+DeviceInfo DigitalAmp::getDefaultDevice(bool isInput)
+{
+    int defaultDeviceIndex = isInput ? Pa_GetDefaultInputDevice() : Pa_GetDefaultOutputDevice();
+    const PaDeviceInfo *defaultDeviceInfo = Pa_GetDeviceInfo(defaultDeviceIndex);
+
+    DeviceInfo defaultDevice;
+    defaultDevice.index = defaultDeviceIndex;
+    defaultDevice.maxInputChannels = defaultDeviceInfo->maxInputChannels;
+    defaultDevice.maxOutputChannels = defaultDeviceInfo->maxOutputChannels;
+    defaultDevice.name = defaultDeviceInfo->name;
+
+    return defaultDevice;
+}
+
+DeviceInfo DigitalAmp::getInputDevice()
+{
+    const PaDeviceInfo *info = Pa_GetDeviceInfo(inputParams_.device);
+    DeviceInfo inputInfo;
+    inputInfo.index = inputParams_.device;
+    inputInfo.name = info->name;
+    inputInfo.maxInputChannels = info->maxInputChannels;
+    inputInfo.maxOutputChannels = info->maxOutputChannels;
+
+    return inputInfo;
+}
+
+DeviceInfo DigitalAmp::getOutputDevice()
+{
+    const PaDeviceInfo *info = Pa_GetDeviceInfo(outputParams_.device);
+    DeviceInfo outputInfo;
+    outputInfo.index = outputParams_.device;
+    outputInfo.name = info->name;
+    outputInfo.maxInputChannels = info->maxInputChannels;
+    outputInfo.maxOutputChannels = info->maxOutputChannels;
+
+    return outputInfo;
 }

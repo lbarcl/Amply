@@ -19,7 +19,8 @@ CommandHandler::CommandHandler(DigitalAmp *amp) : amp(amp)
         {"start", [this] { startStream(); }},
         {"stop", [this] { closeStream(); }},
         {"exit", [this] { exitApp(); }},
-        {"clear", [this] { clearConsole(); }}
+        {"clear", [this] { clearConsole(); }},
+        {"gain", [this] { setGain(); }}
     };
 }
 
@@ -166,4 +167,30 @@ void CommandHandler::clearInputBuffer()
 {
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+// ===================== Effect Functions =====================
+
+void CommandHandler::setGain() 
+{
+    if (!gainEffect) {
+        std::cerr << "[Error] Gain effect is not initialized.\n";
+        return;
+    }
+
+    float gain = 1.0f;
+    std::cout << "Enter gain multiplier: ";
+    std::cin >> gain;
+
+    if (std::cin.fail()) {
+        std::cin.clear(); // clear error flag
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // discard input
+        std::cerr << "[Error] Invalid input. Gain unchanged.\n";
+        return;
+    }
+
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // discard leftover
+
+    gainEffect->setGain(gain);
+    std::cout << "[Info] Gain set to " << gain << "\n";
 }

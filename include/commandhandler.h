@@ -2,6 +2,8 @@
 #include <unordered_map>
 #include <functional>
 #include <string>
+#include "Effects/gain.h"
+#include <memory>
 
 class DigitalAmp; // Forward Declaration
 
@@ -13,6 +15,7 @@ public:
     // ===================== Main Loop =====================
     void run();
 
+    std::shared_ptr<GainEffect> gainEffect;
 private:
     DigitalAmp* amp;
 
@@ -27,6 +30,7 @@ private:
     void exitApp();
     void showHelp();
     void clearConsole();
+    void setGain();
 
     // ===================== Utility =====================
     void clearInputBuffer();

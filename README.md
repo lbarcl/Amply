@@ -6,7 +6,6 @@ A digital guitar amplifier built with C++ and PortAudio, featuring real-time aud
 
 - Real-time audio input/output processing
 - Adjustable gain (0.0 - 10.0)
-- Distortion effect with adjustable intensity (0.0 - 1.0)
 - Interactive command-line interface
 - Cross-platform support via PortAudio
 
@@ -44,20 +43,29 @@ A digital guitar amplifier built with C++ and PortAudio, featuring real-time aud
 
 ## Usage
 
-Once running, you can use these commands:
-- `g <value>` - Set gain (e.g., `g 2.5`)
-- `d <value>` - Set distortion (e.g., `d 0.7`)
-- `h` - Show help
-- `q` - Quit
+Once running, you can use the following commands. **Note:** These commands do **not** take arguments directly. Instead, they will prompt you to choose an option or input a value when executed.
 
-## Hardware Setup
+- `gain` – Sets the gain multiplier.
+- `rate` – Sets the sample rate.
+- `input` – Selects the input device.
+- `output` – Selects the output device.
+- `start` – Starts audio processing.
+- `stop` – Stops audio processing.
+- `exit` – Exits the program.
+- `help` – Displays this help message.
+  
+### Example
 
-1. Connect your guitar or audio source to your computer's default audio input
-2. Connect speakers or headphones to your computer's default audio output
-3. Start the application and adjust gain and distortion as needed
+1. Connect your guitar or audio source to your computer.
+2. Connect speakers or headphones to your computer.
+3. Start the application.
+4. Select connected ports.
+5. Start the stream.
+6. Adjust the gain and other effects.
 
 ## Architecture
 
-- **DigitalAmp**: Core amplifier class handling audio processing
-- **PortAudio**: Cross-platform audio I/O library (included as submodule)
-- **Real-time Processing**: Low-latency audio callback system
+- **DigitalAmp** – Core amplifier class handling audio processing.
+- **CommandHandler** – Handles CLI commands and user input.
+- **Effect** – Simple effect template for creating custom audio effects.
+- **PortAudio** – Cross-platform audio I/O library (included as a submodule).

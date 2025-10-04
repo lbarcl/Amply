@@ -3,20 +3,22 @@
 #include <functional>
 #include <string>
 
-class DigitalAmp; // forward declaration
+class DigitalAmp; // Forward Declaration
 
 class CommandHandler {
 public:
+    // ===================== Constructor =====================
     explicit CommandHandler(DigitalAmp* amp);
+
+    // ===================== Main Loop =====================
     void run();
 
 private:
     DigitalAmp* amp;
 
-    // Map from command strings to functions
     std::unordered_map<std::string, std::function<void()>> commands;
 
-    // Command handlers
+    // ===================== Command Handlers =====================
     void chooseInput();
     void chooseOutput();
     void chooseSampleRate();
@@ -26,6 +28,6 @@ private:
     void showHelp();
     void clearConsole();
 
-    // Utility
+    // ===================== Utility =====================
     void clearInputBuffer();
 };

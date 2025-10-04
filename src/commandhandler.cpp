@@ -7,28 +7,23 @@
 #include <unordered_map>
 #include <functional>
 
+// ===================== Constructor =====================
 CommandHandler::CommandHandler(DigitalAmp *amp) : amp(amp)
 {
     // Initialize command table
     commands = {
-        {"help", [this]
-         { showHelp(); }},
-        {"input", [this]
-         { chooseInput(); }},
-        {"output", [this]
-         { chooseOutput(); }},
-        {"rate", [this]
-         { chooseSampleRate(); }},
-        {"start", [this]
-         { startStream(); }},
-        {"stop", [this]
-         { closeStream(); }},
-        {"exit", [this]
-         { exitApp(); }},
-        {"clear", [this]
-         { clearConsole(); }}};
+        {"help", [this] { showHelp(); }},
+        {"input", [this] { chooseInput(); }},
+        {"output", [this] { chooseOutput(); }},
+        {"rate", [this] { chooseSampleRate(); }},
+        {"start", [this] { startStream(); }},
+        {"stop", [this] { closeStream(); }},
+        {"exit", [this] { exitApp(); }},
+        {"clear", [this] { clearConsole(); }}
+    };
 }
 
+// ===================== Main Loop =====================
 void CommandHandler::run()
 {
     std::cout << "Welcome to Amply Digital Amplifier!\n";
@@ -44,7 +39,7 @@ void CommandHandler::run()
         auto it = commands.find(cmdStr);
         if (it != commands.end())
         {
-            it->second(); // execute command
+            it->second(); // Execute command
         }
         else
         {
@@ -54,6 +49,7 @@ void CommandHandler::run()
     }
 }
 
+// ===================== Device Selection =====================
 void CommandHandler::chooseInput()
 {
     auto devices = amp->getAvailableDevices();
@@ -70,8 +66,7 @@ void CommandHandler::chooseInput()
 
     std::cout << "[Info] Selected input device: "
               << selectedDevice.name
-              << " (" << selectedDevice.maxInputChannels << " channels)"
-              << std::endl;
+              << " (" << selectedDevice.maxInputChannels << " channels)\n";
 }
 
 void CommandHandler::chooseOutput()
@@ -90,10 +85,10 @@ void CommandHandler::chooseOutput()
 
     std::cout << "[Info] Selected output device: "
               << selectedDevice.name
-              << " (" << selectedDevice.maxOutputChannels << " channels)"
-              << std::endl;
+              << " (" << selectedDevice.maxOutputChannels << " channels)\n";
 }
 
+// ===================== Sample Rate Selection =====================
 void CommandHandler::chooseSampleRate()
 {
     amp->sampleRate = promptForSelection(
@@ -102,9 +97,10 @@ void CommandHandler::chooseSampleRate()
         amp->choseBestSampleRate());
 
     std::cout << "[Info] Selected sample rate: "
-              << amp->sampleRate << " Hz" << std::endl;
+              << amp->sampleRate << " Hz\n";
 }
 
+// ===================== Stream Control =====================
 void CommandHandler::startStream()
 {
     if (amp->sampleRate == 0.0)
@@ -112,13 +108,13 @@ void CommandHandler::startStream()
 
     if (!amp->openStream())
     {
-        std::cerr << "[Error] Failed to open audio stream." << std::endl;
+        std::cerr << "[Error] Failed to open audio stream.\n";
         return;
     }
 
     if (!amp->startStream())
     {
-        std::cerr << "[Error] Failed to start audio stream." << std::endl;
+        std::cerr << "[Error] Failed to start audio stream.\n";
         return;
     }
 
@@ -127,22 +123,16 @@ void CommandHandler::startStream()
 
     std::cout << "[Info] Audio stream started\n";
     if (inDev.index != 0)
-    {
-        std::cout << "   Input : " << inDev.name
-                  << " (" << inDev.maxInputChannels << " channels)\n";
-    }
+        std::cout << "   Input : " << inDev.name << " (" << inDev.maxInputChannels << " channels)\n";
     if (outDev.index != 0)
-    {
-        std::cout << "   Output: " << outDev.name
-                  << " (" << outDev.maxOutputChannels << " channels)\n";
-    }
-    std::cout << "   Sample rate: " << amp->sampleRate << " Hz" << std::endl;
+        std::cout << "   Output: " << outDev.name << " (" << outDev.maxOutputChannels << " channels)\n";
+    std::cout << "   Sample rate: " << amp->sampleRate << " Hz\n";
 }
 
 void CommandHandler::closeStream()
 {
     amp->stopStream();
-    std::cout << "[Info] Audio stream stopped." << std::endl;
+    std::cout << "[Info] Audio stream stopped.\n";
 }
 
 void CommandHandler::exitApp()
@@ -152,6 +142,7 @@ void CommandHandler::exitApp()
     std::exit(0);
 }
 
+// ===================== Utility Functions =====================
 void CommandHandler::showHelp()
 {
     std::cout << "\nAvailable commands:\n";
@@ -162,9 +153,9 @@ void CommandHandler::showHelp()
 void CommandHandler::clearConsole()
 {
 #ifdef _WIN32
-    system("cls"); // Clear console for Windows
+    system("cls");
 #else
-    system("clear"); // Clear console for Unix-based systems
+    system("clear");
 #endif
 
     std::cout << "Welcome to Amply Digital Amplifier!\n";

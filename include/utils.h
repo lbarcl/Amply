@@ -3,29 +3,37 @@
 #include <string>
 #include <portaudio.h>
 
-// A safe copy of device information
+// ===================== Device Information =====================
+
+// A safe copy of PortAudio device information
 struct DeviceInfo
 {
     int index;             // PortAudio device index
     std::string name;      // Device name
-    int maxInputChannels;  // >0 means input
-    int maxOutputChannels; // >0 means output
+    int maxInputChannels;  // >0 means input-capable
+    int maxOutputChannels; // >0 means output-capable
 };
 
-// A container of available devices
+// Container for available devices
 struct AvailableDevices
 {
-public:
-    std::vector<DeviceInfo> inputs;
-    std::vector<DeviceInfo> outputs;
+    std::vector<DeviceInfo> inputs;   // All input devices
+    std::vector<DeviceInfo> outputs;  // All output devices
 };
 
+// ===================== Utility Functions =====================
+
+// Returns the most suitable PortAudio host API for the system
 PaHostApiIndex chooseBestApi();
 
-DeviceInfo promptForSelection(const std::string &prompt,
-                              const std::vector<DeviceInfo> &devices,
-                              const DeviceInfo &defaultDevice);
+// Prompts the user to select a device from a list
+DeviceInfo promptForSelection(
+    const std::string &prompt,
+    const std::vector<DeviceInfo> &devices,
+    const DeviceInfo &defaultDevice);
 
-double promptForSelection(const std::string &prompt,
-                          const std::vector<double> &values,
-                          double defaultValue);
+// Prompts the user to select a numeric value from a list (e.g., sample rates)
+double promptForSelection(
+    const std::string &prompt,
+    const std::vector<double> &values,
+    double defaultValue);

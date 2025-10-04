@@ -1,8 +1,13 @@
 #include "utils.h"
 #include <iostream>
+#include <string>
+#include <vector>
 
-// Utility: pick best host API based on OS & fallback list
-PaHostApiIndex chooseBestApi() {
+// ===================== Host API Selection =====================
+
+// Utility: pick best host API based on OS & fallback priority list
+PaHostApiIndex chooseBestApi() 
+{
 #ifdef _WIN32
     std::vector<std::string> priority = {
         "Windows WASAPI", "Windows WDM-KS", "Windows DirectSound", "MME"
@@ -16,25 +21,33 @@ PaHostApiIndex chooseBestApi() {
 #endif
 
     int numApis = Pa_GetHostApiCount();
-    if (numApis < 0) return paHostApiNotFound;
+    if (numApis < 0) 
+        return paHostApiNotFound;
 
     // Try APIs in order of priority
-    for (auto &pref : priority) {
-        for (int i = 0; i < numApis; i++) {
+    for (const auto &pref : priority) 
+    {
+        for (int i = 0; i < numApis; i++) 
+        {
             const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(i);
-            if (std::string(apiInfo->name).find(pref) != std::string::npos) {
+            if (apiInfo && std::string(apiInfo->name).find(pref) != std::string::npos) 
+            {
                 return i;
             }
         }
     }
 
-    // fallback to default API
+    // Fallback to default API
     return Pa_GetDefaultHostApi();
 }
 
-DeviceInfo promptForSelection(const std::string &prompt,
-                              const std::vector<DeviceInfo> &devices,
-                              const DeviceInfo &defaultDevice)
+// ===================== Device Selection =====================
+
+// Prompt user to select a device from a list
+DeviceInfo promptForSelection(
+    const std::string &prompt,
+    const std::vector<DeviceInfo> &devices,
+    const DeviceInfo &defaultDevice)
 {
     if (devices.empty())
     {
@@ -57,18 +70,18 @@ DeviceInfo promptForSelection(const std::string &prompt,
         std::string line;
         std::getline(std::cin, line);
 
-        if (line.empty()) {
+        if (line.empty()) 
             return defaultDevice;
-        }
 
-        try {
+        try 
+        {
             int choice = std::stoi(line);
             if (choice >= 1 && choice <= static_cast<int>(devices.size()))
-            {
-                return devices[choice - 1]; // convert back to 0-based index
-            }
-        } catch (...) {
-            // invalid conversion
+                return devices[choice - 1]; // convert to 0-based index
+        } 
+        catch (...) 
+        {
+            // invalid input, fall through
         }
 
         std::cout << "Invalid choice. Please enter a number between 1 and "
@@ -76,37 +89,45 @@ DeviceInfo promptForSelection(const std::string &prompt,
     }
 }
 
-double promptForSelection(const std::string &prompt,
-                          const std::vector<double> &values,
-                          double defaultValue)
+// ===================== Numeric Selection =====================
+
+// Prompt user to select a numeric value (e.g., sample rates)
+double promptForSelection(
+    const std::string &prompt,
+    const std::vector<double> &values,
+    double defaultValue)
 {
-    if (values.empty()) {
+    if (values.empty()) 
+    {
         std::cout << "  (No values available)\n";
         return defaultValue;
     }
 
-    for (size_t i = 0; i < values.size(); i++) {
+    for (size_t i = 0; i < values.size(); i++) 
+    {
         std::cout << "  " << (i + 1) << " - " << values[i] << "\n";
     }
 
     std::cout << "Press Enter to select default: " << defaultValue << "\n";
 
-    while (true) {
+    while (true)
+    {
         std::cout << prompt;
         std::string line;
         std::getline(std::cin, line);
 
-        if (line.empty()) {
+        if (line.empty()) 
             return defaultValue;
-        }
 
-        try {
+        try 
+        {
             int choice = std::stoi(line);
-            if (choice >= 1 && choice <= static_cast<int>(values.size())) {
+            if (choice >= 1 && choice <= static_cast<int>(values.size()))
                 return values[choice - 1]; // 0-based index
-            }
-        } catch (...) {
-            // invalid conversion
+        } 
+        catch (...) 
+        {
+            // invalid input, fall through
         }
 
         std::cout << "Invalid choice. Please enter a number between 1 and "

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 
+// ===================== Constructor / Destructor =====================
 DigitalAmp::DigitalAmp()
     : stream_(nullptr), initialized_(false), running_(false), sampleRate(0.0), inputParams_({}), outputParams_({})
 {
@@ -18,6 +19,7 @@ DigitalAmp::~DigitalAmp()
     }
 }
 
+// ===================== Initialization / Termination =====================
 bool DigitalAmp::initialize()
 {
     PaError err = Pa_Initialize();
@@ -28,12 +30,12 @@ bool DigitalAmp::initialize()
     }
 
     initialized_ = true;
-
     currentApi_ = chooseBestApi();
 
     return true;
 }
 
+// ===================== Stream Management =====================
 bool DigitalAmp::openStream()
 {
     return this->openStream(sampleRate, paFramesPerBufferUnspecified);
@@ -50,7 +52,7 @@ bool DigitalAmp::openStream(double sampleRate, unsigned long framesPerBuffer)
     if (!chooseCommonChannelCount())
         return false;
 
-    // Verify that this format is supported
+    // Verify format support
     PaError support = Pa_IsFormatSupported(&inputParams_, &outputParams_, sampleRate);
     if (support != paFormatIsSupported)
     {
@@ -79,9 +81,7 @@ bool DigitalAmp::openStream(double sampleRate, unsigned long framesPerBuffer)
 bool DigitalAmp::startStream()
 {
     if (!initialized_ || !stream_)
-    {
         return false;
-    }
 
     PaError err = Pa_StartStream(stream_);
     if (err != paNoError)
@@ -105,132 +105,7 @@ void DigitalAmp::stopStream()
     running_ = false;
 }
 
-std::vector<double> DigitalAmp::getSupportedSampleRates(const PaStreamParameters *inputParams, const PaStreamParameters *outputParams)
-{
-    // Most commonly supported sample rates
-    double standardRates[] = {
-        8000.0, 11025.0, 16000.0, 22050.0, 32000.0,
-        44100.0, 48000.0, 88200.0, 96000.0, 192000.0};
-
-    std::vector<double> supported;
-
-    for (double rate : standardRates)
-    {
-        PaError err = Pa_IsFormatSupported(inputParams, outputParams, rate);
-        if (err == paFormatIsSupported)
-        {
-            supported.push_back(rate);
-        }
-    }
-
-    return supported;
-}
-
-std::vector<double> DigitalAmp::getSupportedSampleRates()
-{
-    return getSupportedSampleRates(&inputParams_, &outputParams_);
-}
-
-std::unique_ptr<AvailableDevices> DigitalAmp::getAvailableDevices()
-{
-    auto result = std::make_unique<AvailableDevices>();
-
-    const PaHostApiInfo *apiInfo = Pa_GetHostApiInfo(currentApi_);
-    if (!apiInfo)
-        return result;
-
-    auto isVirtual = [](const std::string &n)
-    {
-        static const std::vector<std::string> blacklist = {
-            "Monitor of", "dmix", "default", "null",
-            "a52", "side", "rear", "center_lfe", "cards.pcm", "Loopback"};
-        for (const auto &bad : blacklist)
-        {
-            if (n.find(bad) != std::string::npos)
-                return true;
-        }
-        return false;
-    };
-
-    auto sanitizeName = [](const char *raw)
-    {
-        std::string s(raw ? raw : "");
-        for (char &c : s)
-        {
-            if (!isprint(static_cast<unsigned char>(c)))
-            {
-                c = '?'; // replace unprintables
-            }
-        }
-        return s;
-    };
-
-    for (int i = 0; i < apiInfo->deviceCount; i++)
-    {
-        PaDeviceIndex deviceIndex = Pa_HostApiDeviceIndexToDeviceIndex(currentApi_, i);
-        const PaDeviceInfo *paDev = Pa_GetDeviceInfo(deviceIndex);
-        if (!paDev)
-            continue;
-
-        std::string name = sanitizeName(paDev->name);
-        if (isVirtual(name))
-            continue; // skip ghost/virtual devices
-
-        DeviceInfo d;
-        d.index = deviceIndex;
-        d.name = std::string(apiInfo->name) + ": " + name;
-        d.maxInputChannels = paDev->maxInputChannels;
-        d.maxOutputChannels = paDev->maxOutputChannels;
-
-        if (d.maxInputChannels > 0)
-            result->inputs.push_back(d);
-        if (d.maxOutputChannels > 0)
-            result->outputs.push_back(d);
-    }
-
-    return result;
-}
-
-double DigitalAmp::choseBestSampleRate()
-{
-
-    // Try from highest quality down
-    static const double COMMON_SAMPLE_RATES[] = {
-        192000.0, 96000.0, 88200.0,
-        48000.0, 44100.0, 32000.0,
-        22050.0, 16000.0, 8000.0};
-
-    for (double rate : COMMON_SAMPLE_RATES)
-    {
-        if (Pa_IsFormatSupported(&inputParams_, &outputParams_, rate) == paFormatIsSupported)
-        {
-            return rate;
-        }
-    }
-
-    return 44100.0;
-}
-
-bool DigitalAmp::createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput)
-{
-    PaStreamParameters *params = isInput ? &inputParams_ : &outputParams_;
-    const PaDeviceInfo *device = Pa_GetDeviceInfo(deviceIndex);
-
-    if (device == NULL)
-    {
-        std::cerr << "PortAudio error: There is no device with index of " << deviceIndex << std::endl;
-        return true;
-    }
-
-    params->device = deviceIndex;
-    params->channelCount = channelCount;
-    params->sampleFormat = sampleFormat;
-    params->suggestedLatency = isInput ? device->defaultLowInputLatency : device->defaultLowOutputLatency;
-    params->hostApiSpecificStreamInfo = nullptr;
-
-    return false;
-}
-
+// ===================== Audio Processing =====================
 int DigitalAmp::audioCallback(const void *inputBuffer, void *outputBuffer,
                               unsigned long framesPerBuffer,
                               const PaStreamCallbackTimeInfo *timeInfo,
@@ -258,8 +133,7 @@ int DigitalAmp::processAudio(const float *input, float *output, unsigned long fr
             output[i * outCh + ch] = sample;
         }
 
-        // If output has more channels than input (e.g., mono → stereo),
-        // duplicate the first channel
+        // Duplicate first channel if output has more channels than input
         for (int ch = inCh; ch < outCh; ch++)
         {
             output[i * outCh + ch] = output[i * outCh];
@@ -269,6 +143,45 @@ int DigitalAmp::processAudio(const float *input, float *output, unsigned long fr
     return paContinue;
 }
 
+// ===================== Sample Rate Handling =====================
+std::vector<double> DigitalAmp::getSupportedSampleRates(const PaStreamParameters *inputParams, const PaStreamParameters *outputParams)
+{
+    double standardRates[] = {
+        8000.0, 11025.0, 16000.0, 22050.0, 32000.0,
+        44100.0, 48000.0, 88200.0, 96000.0, 192000.0};
+
+    std::vector<double> supported;
+    for (double rate : standardRates)
+    {
+        if (Pa_IsFormatSupported(inputParams, outputParams, rate) == paFormatIsSupported)
+            supported.push_back(rate);
+    }
+
+    return supported;
+}
+
+std::vector<double> DigitalAmp::getSupportedSampleRates()
+{
+    return getSupportedSampleRates(&inputParams_, &outputParams_);
+}
+
+double DigitalAmp::choseBestSampleRate()
+{
+    static const double COMMON_SAMPLE_RATES[] = {
+        192000.0, 96000.0, 88200.0,
+        48000.0, 44100.0, 32000.0,
+        22050.0, 16000.0, 8000.0};
+
+    for (double rate : COMMON_SAMPLE_RATES)
+    {
+        if (Pa_IsFormatSupported(&inputParams_, &outputParams_, rate) == paFormatIsSupported)
+            return rate;
+    }
+
+    return 44100.0;
+}
+
+// ===================== Channel Handling =====================
 bool DigitalAmp::chooseCommonChannelCount()
 {
     int commonChannelCount = chooseCommonChannelCount(inputParams_.channelCount, outputParams_.channelCount);
@@ -293,11 +206,7 @@ int DigitalAmp::chooseCommonChannelCount(const DeviceInfo &input, const DeviceIn
         return 0;
     }
 
-    int common = std::min(inCh, outCh);
-    if (common < 1)
-        common = 1; // must be >= 1
-
-    return common;
+    return std::max(1, std::min(inCh, outCh));
 }
 
 int DigitalAmp::chooseCommonChannelCount(int inputCount, int outputCount)
@@ -308,11 +217,83 @@ int DigitalAmp::chooseCommonChannelCount(int inputCount, int outputCount)
         return 0;
     }
 
-    int common = std::min(inputCount, outputCount);
-    if (common < 1)
-        common = 1; // must be >= 1
+    return std::max(1, std::min(inputCount, outputCount));
+}
 
-    return common;
+// ===================== Device Handling =====================
+bool DigitalAmp::createStreamParameters(PaDeviceIndex deviceIndex, int channelCount, PaSampleFormat sampleFormat, bool isInput)
+{
+    PaStreamParameters *params = isInput ? &inputParams_ : &outputParams_;
+    const PaDeviceInfo *device = Pa_GetDeviceInfo(deviceIndex);
+
+    if (device == nullptr)
+    {
+        std::cerr << "PortAudio error: There is no device with index of " << deviceIndex << std::endl;
+        return true;
+    }
+
+    params->device = deviceIndex;
+    params->channelCount = channelCount;
+    params->sampleFormat = sampleFormat;
+    params->suggestedLatency = isInput ? device->defaultLowInputLatency : device->defaultLowOutputLatency;
+    params->hostApiSpecificStreamInfo = nullptr;
+
+    return false;
+}
+
+std::unique_ptr<AvailableDevices> DigitalAmp::getAvailableDevices()
+{
+    auto result = std::make_unique<AvailableDevices>();
+    const PaHostApiInfo *apiInfo = Pa_GetHostApiInfo(currentApi_);
+    if (!apiInfo)
+        return result;
+
+    auto isVirtual = [](const std::string &n)
+    {
+        static const std::vector<std::string> blacklist = {
+            "Monitor of", "dmix", "default", "null",
+            "a52", "side", "rear", "center_lfe", "cards.pcm", "Loopback"};
+        for (const auto &bad : blacklist)
+        {
+            if (n.find(bad) != std::string::npos)
+                return true;
+        }
+        return false;
+    };
+
+    auto sanitizeName = [](const char *raw)
+    {
+        std::string s(raw ? raw : "");
+        for (char &c : s)
+        {
+            if (!isprint(static_cast<unsigned char>(c)))
+                c = '?';
+        }
+        return s;
+    };
+
+    for (int i = 0; i < apiInfo->deviceCount; i++)
+    {
+        PaDeviceIndex deviceIndex = Pa_HostApiDeviceIndexToDeviceIndex(currentApi_, i);
+        const PaDeviceInfo *paDev = Pa_GetDeviceInfo(deviceIndex);
+        if (!paDev) continue;
+
+        std::string name = sanitizeName(paDev->name);
+        if (isVirtual(name)) continue;
+
+        DeviceInfo d;
+        d.index = deviceIndex;
+        d.name = std::string(apiInfo->name) + ": " + name;
+        d.maxInputChannels = paDev->maxInputChannels;
+        d.maxOutputChannels = paDev->maxOutputChannels;
+
+        if (d.maxInputChannels > 0)
+            result->inputs.push_back(d);
+        if (d.maxOutputChannels > 0)
+            result->outputs.push_back(d);
+    }
+
+    return result;
 }
 
 DeviceInfo DigitalAmp::getDefaultDevice(bool isInput)

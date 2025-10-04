@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include "utils.h"
+#include "effect.h"
 
 class DigitalAmp {
 public:
@@ -38,6 +39,7 @@ public:
     
     // ===================== Public Members =====================
     double sampleRate;
+    std::vector<std::shared_ptr<Effect>> effects;
 
 private:
     // ===================== Audio Processing =====================

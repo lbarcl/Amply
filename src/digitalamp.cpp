@@ -129,6 +129,13 @@ int DigitalAmp::processAudio(const float *input, float *output, unsigned long fr
         for (int ch = 0; ch < std::min(inCh, outCh); ch++)
         {
             float sample = input[i * inCh + ch];
+
+            // Apply all effects in order
+            for (auto &effect : effects)
+            {
+                sample = effect->process(sample);
+            }
+
             sample = std::max(-1.0f, std::min(1.0f, sample));
             output[i * outCh + ch] = sample;
         }
@@ -276,10 +283,12 @@ std::unique_ptr<AvailableDevices> DigitalAmp::getAvailableDevices()
     {
         PaDeviceIndex deviceIndex = Pa_HostApiDeviceIndexToDeviceIndex(currentApi_, i);
         const PaDeviceInfo *paDev = Pa_GetDeviceInfo(deviceIndex);
-        if (!paDev) continue;
+        if (!paDev)
+            continue;
 
         std::string name = sanitizeName(paDev->name);
-        if (isVirtual(name)) continue;
+        if (isVirtual(name))
+            continue;
 
         DeviceInfo d;
         d.index = deviceIndex;

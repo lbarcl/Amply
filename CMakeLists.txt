@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(Amply VERSION 1.0.0 LANGUAGES CXX)
+include(${CMAKE_SOURCE_DIR}/AddIconToBinary.cmake)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -14,6 +15,8 @@ include_directories(external/portaudio/include)
 
 # Source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
+
+AddIconToBinary(SOURCES ICONS ${CMAKE_SOURCE_DIR}/images/Amply.ico ${CMAKE_SOURCE_DIR}/images/Amply.icns)
 
 # Create executable
 add_executable(amply ${SOURCES})

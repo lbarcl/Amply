@@ -6,12 +6,30 @@ include(${CMAKE_SOURCE_DIR}/AddIconToBinary.cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MINGW)
+    message(STATUS "Detected MinGW GCC — enabling static runtime linking.")
+
+    # Try to find the static winpthread library
+    find_library(WINPTHREAD_STATIC libwinpthread.a PATHS "${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES}")
+
+    if(WINPTHREAD_STATIC)
+        message(STATUS "Found static libwinpthread: ${WINPTHREAD_STATIC}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    else()
+        message(WARNING "Static libwinpthread.a not found — falling back to dynamic libwinpthread-1.dll")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    endif()
+else()
+    message(STATUS "Non-MinGW compiler detected — building with shared runtime.")
+endif()
+
 # Add external dependencies directory
 add_subdirectory(external/portaudio)
 
 # Include directories
 include_directories(include)
 include_directories(external/portaudio/include)
+
 
 # Source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")

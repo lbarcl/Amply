@@ -8,15 +8,16 @@
 // Utility: pick best host API based on OS & fallback priority list
 PaHostApiIndex chooseBestApi() 
 {
+
 #ifdef _WIN32
-    std::vector<std::string> priority = {
-        "Windows WASAPI", "Windows WDM-KS", "Windows DirectSound", "MME"
+    std::vector<PaHostApiTypeId> priority = {
+        paASIO, paWASAPI, paWDMKS, paDirectSound, paMME
     };
 #elif __APPLE__
-    std::vector<std::string> priority = { "Core Audio" };
+    std::vector<std::string> priority = { paCoreAudio };
 #else // Linux & others
     std::vector<std::string> priority = {
-        "PulseAudio", "ALSA", "JACK Audio Connection Kit", "OSS"
+        paPulseAudio, paALSA, paJACK, paOSS
     };
 #endif
 
@@ -25,13 +26,13 @@ PaHostApiIndex chooseBestApi()
         return paHostApiNotFound;
 
     // Try APIs in order of priority
-    for (const auto &pref : priority) 
+    for (const PaHostApiTypeId &pref : priority) 
     {
         for (int i = 0; i < numApis; i++) 
         {
             const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(i);
-            if (apiInfo && std::string(apiInfo->name).find(pref) != std::string::npos) 
-            {
+            if (apiInfo && apiInfo->type == pref) 
+            {   
                 return i;
             }
         }

@@ -1,3 +1,5 @@
+![AmplyLogo](https://github.com/lbarcl/Amply/blob/main/images/Amply.png)
+
 # Amply
 
 A digital guitar amplifier built with C++ and PortAudio, featuring real-time audio processing with gain and distortion effects.

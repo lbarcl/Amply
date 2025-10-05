@@ -1,4 +1,4 @@
-#include "commandhandler.h"
+#include "Effects/gain.h"
 #include "digitalamp.h"
 
 int main() { 
@@ -7,10 +7,6 @@ int main() {
     DigitalAmp amp;
     amp.initialize();
     amp.effects.push_back(gain);
-
-    CommandHandler cmd(&amp);
-    cmd.gainEffect = gain;
-    cmd.run();
 
     return 0;
 }

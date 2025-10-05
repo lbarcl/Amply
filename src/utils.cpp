@@ -14,9 +14,9 @@ PaHostApiIndex chooseBestApi()
         paASIO, paWASAPI, paWDMKS, paDirectSound, paMME
     };
 #elif __APPLE__
-    std::vector<std::string> priority = { paCoreAudio };
+    std::vector<PaHostApiTypeId> priority = { paCoreAudio };
 #else // Linux & others
-    std::vector<std::string> priority = {
+    std::vector<PaHostApiTypeId> priority = {
         paPulseAudio, paALSA, paJACK, paOSS
     };
 #endif

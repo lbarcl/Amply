@@ -23,7 +23,23 @@ else()
     message(STATUS "Non-MinGW compiler detected — building with shared runtime.")
 endif()
 
+# Define OpenGL libraries variable
+set(OPENGL_LIBRARIES "")
+
+# Find OpenGL
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL REQUIRED)
+
+# Check if OpenGL was found
+if (OPENGL_FOUND)
+    message(STATUS "OpenGL found: ${OPENGL_LIBRARIES}")
+else()
+    message(FATAL_ERROR "OpenGL not found")
+endif()
+
 # Add external dependencies directory
+add_subdirectory(external/glad)
+add_subdirectory(external/glfw)
 add_subdirectory(external/portaudio)
 
 # Include directories
@@ -40,9 +56,16 @@ AddIconToBinary(SOURCES ICONS ${CMAKE_SOURCE_DIR}/images/Amply.ico ${CMAKE_SOURC
 add_executable(amply ${SOURCES})
 
 # Link libraries
-target_link_libraries(amply portaudio)
+target_link_libraries(amply portaudio glad glfw ${OPENGL_LIBRARIES})
 
 # Set output directory
 set_target_properties(amply PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# Copy shaders to output
+file(GLOB Shaders
+    "${CMAKE_SOURCE_DIR}/shaders/*"
+)
+file(COPY ${Shaders}
+     DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders)
